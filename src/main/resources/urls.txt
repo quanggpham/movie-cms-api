@@ -1,0 +1,6 @@
+# Movie URLs for toivote.com crawler
+# One URL per line. Lines starting with # are comments.
+# Add ~100 movie detail URLs below.
+#
+# Example format:
+# https://toivote.com/movie/some-movie-slug
