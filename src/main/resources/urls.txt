@@ -1,6 +1,56 @@
 # Movie URLs for toivote.com crawler
-# One URL per line. Lines starting with # are comments.
-# Add ~100 movie detail URLs below.
-#
-# Example format:
-# https://toivote.com/movie/some-movie-slug
+# 52 URLs collected from homepage infinite scroll
+# Lines starting with # are comments.
+
+https://toivote.com/movie/074d82e4-c286-4645-836d-0b0c63935136
+https://toivote.com/movie/080a89c4-11dd-43b1-ae5a-123dd4b52910
+https://toivote.com/movie/0819ef28-9bb9-4bf7-bd94-959b2737f487
+https://toivote.com/movie/0c4fba53-31d3-496e-a7c8-d4ec4f1786de
+https://toivote.com/movie/0de70001-0000-4000-8000-000000000001
+https://toivote.com/movie/0e489257-4745-4998-bd76-8b9aa9a71126
+https://toivote.com/movie/0f24db1e-b840-4238-bfa2-8b3cd60bd2b2
+https://toivote.com/movie/168b04e0-dbe4-48f6-9dfe-2b48f877dfa5
+https://toivote.com/movie/1a7ab846-7cf2-4551-b723-2f31dc1473a7
+https://toivote.com/movie/21deaffa-5d34-4006-a8b0-fb8838b43079
+https://toivote.com/movie/2d9acb2c-dcb9-4a8b-8ab5-61d0c61fd50c
+https://toivote.com/movie/2dda70a8-5a44-49ca-b408-01120349c061
+https://toivote.com/movie/3cb5aa13-4eda-4da8-9cd5-077dffab987d
+https://toivote.com/movie/3f7b2e15-8fd3-49e5-a267-fc739184992d
+https://toivote.com/movie/42f4dff5-3aa9-4b59-8256-d5a1411d6564
+https://toivote.com/movie/51752143-0382-4b4b-8df9-ab52a0418ac7
+https://toivote.com/movie/575d8fd6-841e-4df2-9b6e-66661bfcbb57
+https://toivote.com/movie/5a880933-36a9-4e48-8b6f-ad06f55fb1ed
+https://toivote.com/movie/6efff29c-2401-4dfe-a422-0486cac60b15
+https://toivote.com/movie/7607ccec-90ba-4f77-9021-39fce12ef490
+https://toivote.com/movie/7ef61708-5487-428f-a4c4-cf59c3436ff3
+https://toivote.com/movie/7fec4dbf-20bb-482b-817e-7b67c2e69131
+https://toivote.com/movie/841e509c-dd7e-4cfc-8539-57ed96eb5f32
+https://toivote.com/movie/85d0b547-718e-43f4-b2c4-e2d4d0d69016
+https://toivote.com/movie/86adb6a0-1d87-40a1-99cf-813a6b49a3f7
+https://toivote.com/movie/8df53c62-df00-4cff-a88d-89666eda58a7
+https://toivote.com/movie/8fcc9bcb-870e-4e1c-8353-c76d4647685c
+https://toivote.com/movie/929e8ddf-e9ad-4b09-833f-42951a5ac9a8
+https://toivote.com/movie/93eab6db-7bb2-426b-8132-ab94c79f82a2
+https://toivote.com/movie/9410af1e-74cd-4a82-b8a5-d125a98fa329
+https://toivote.com/movie/9a69b500-4326-4024-99b3-445ecf5ee85b
+https://toivote.com/movie/a4782627-af70-4136-8e9f-8779e4d50637
+https://toivote.com/movie/a912f0f1-39b2-475e-ba55-92454df8d197
+https://toivote.com/movie/aae93fbd-01d1-44f7-a3a4-966a2ee9befc
+https://toivote.com/movie/ae52ec46-aef3-4814-95ce-0fc7b9dfd28e
+https://toivote.com/movie/b5590b69-c2ad-4007-a905-8daaf907731c
+https://toivote.com/movie/b684bf45-9a7f-488a-a187-52ea17ed0ea0
+https://toivote.com/movie/b8323d7b-247f-48c2-8cf7-06bd36d4c100
+https://toivote.com/movie/b983a5a4-dd92-4943-9216-7b3937a8215c
+https://toivote.com/movie/bb200000-feed-0001-0000-000000000001
+https://toivote.com/movie/bb200000-feed-0001-0000-000000000002
+https://toivote.com/movie/bb200000-feed-0001-0000-000000000003
+https://toivote.com/movie/bb200000-feed-0002-0000-000000000001
+https://toivote.com/movie/c0e0bb86-74d0-499e-ae6c-60908be554b4
+https://toivote.com/movie/c8d6bea1-ee43-4b83-b402-f8dabff62986
+https://toivote.com/movie/d635a5bd-83d3-46dd-80ff-9a6a0f2ce807
+https://toivote.com/movie/d8ea81a9-a555-444b-97b8-fc5a4743590c
+https://toivote.com/movie/e627bf5e-aed8-4652-acd8-24d26b8c22f9
+https://toivote.com/movie/e8906eaf-53fb-4712-803f-f325a5dd7806
+https://toivote.com/movie/ee37da55-67c5-4396-b451-880c529cb990
+https://toivote.com/movie/fa40d0fc-1622-4920-b7a4-2495c3541237
+https://toivote.com/movie/fc388b8d-5c13-437f-814b-4fb22a0d98c7
