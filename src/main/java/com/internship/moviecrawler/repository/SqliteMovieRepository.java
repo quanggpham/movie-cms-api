@@ -5,6 +5,8 @@ import com.google.gson.reflect.TypeToken;
 import com.internship.moviecrawler.model.Movie;
 
 import java.lang.reflect.Type;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.*;
 import java.util.*;
 
@@ -58,6 +60,13 @@ public class SqliteMovieRepository implements MovieRepository {
         this.gson = new Gson();
         try {
             Class.forName("org.sqlite.JDBC");
+            // Ensure parent directories exist (skip for in-memory / special paths)
+            if (!dbPath.startsWith(":")) {
+                Path dbFile = Path.of(dbPath);
+                if (dbFile.getParent() != null) {
+                    Files.createDirectories(dbFile.getParent());
+                }
+            }
             this.conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
             initSchema();
         } catch (Exception e) {
