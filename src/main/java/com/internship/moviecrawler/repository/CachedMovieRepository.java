@@ -57,6 +57,9 @@ public class CachedMovieRepository implements MovieRepository {
 
     /** Expose hit rate from the underlying cache (for monitoring / exercise 4). */
     public int getHitRate() {
+        if (cache.stats().requestCount() == 0) {
+            return 0;
+        }
         return (int) (cache.stats().hitRate() * 100);
     }
 
