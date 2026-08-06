@@ -193,8 +193,7 @@ ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "grep '^https://' /opt/mov
 # Dùng URL đó để test (thay bằng URL thực tế từ DB)
 TOKEN=$(curl -s -X POST http://localhost:8080/login -H "Content-Type: application/json" -d '{"username":"admin","password":"secret"}' | sed -n 's/.*"token": "\([^"]*\)".*/\1/p')
 
-curl -s "http://localhost:8080/movies?url=URL_CUA_BAN" \
-  -H "Authorization: Bearer $TOKEN" | head -15
+curl -s "http://localhost:8080/movies?url=URL_CUA_BAN" -H "Authorization: Bearer $TOKEN" | head -15
 ```
 Expected:
 ```json
@@ -212,8 +211,7 @@ Expected:
 
 **Kiểm tra lỗi 404:**
 ```bash
-curl -s http://localhost:8080/movies?url=https://toivote.com/movie/not-exists \
-  -H "Authorization: Bearer $TOKEN"
+curl -s http://localhost:8080/movies?url=https://toivote.com/movie/not-exists -H "Authorization: Bearer $TOKEN"
 ```
 Expected: `{"success":false,"status":404,"error":{"code":"MOVIE_NOT_FOUND",...}}`
 
@@ -272,15 +270,13 @@ curl -s http://localhost:8080/cache/stats -H "Authorization: Bearer $TOKEN"
 **Kiểm tra git log có merge commit:**
 
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
-  "cd /opt/movie-crawler/source && git log --oneline --graph -10"
+ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "cd /opt/movie-crawler/source && git log --oneline --graph -10"
 ```
 Expected: thấy merge commit `merge: resolve conflict — hop nhat comment server & client`
 
 **Kiểm tra file đã resolve:**
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
-  "grep 'Chinh sua hop nhat' /opt/movie-crawler/source/src/main/java/com/internship/moviecrawler/repository/CachedMovieRepository.java"
+ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "grep 'Chinh sua hop nhat' /opt/movie-crawler/source/src/main/java/com/internship/moviecrawler/repository/CachedMovieRepository.java"
 ```
 Expected: `/* Chinh sua hop nhat giua server & client */`
 
@@ -290,15 +286,11 @@ Expected: `/* Chinh sua hop nhat giua server & client */`
 
 ```bash
 # 1. Login thành công
-curl -s -X POST http://localhost:8080/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"secret"}'
+curl -s -X POST http://localhost:8080/login -H "Content-Type: application/json" -d '{"username":"admin","password":"secret"}'
 # Expected: {"success":true,"data":{"token":"...","expiresIn":3600}}
 
 # 2. Login sai password
-curl -s -X POST http://localhost:8080/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"wrong"}'
+curl -s -X POST http://localhost:8080/login -H "Content-Type: application/json" -d '{"username":"admin","password":"wrong"}'
 # Expected: {"success":false,"status":401,"error":{"code":"UNAUTHORIZED",...}}
 
 # 3. API không có token
@@ -361,16 +353,13 @@ Expected: trong output thấy `-Xms125m -Xmx512m`
 
 ```bash
 # Log WebServer (API requests, cache hits/misses)
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
-  "tail -f /opt/movie-crawler/logs/webserver.log"
+ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -f /opt/movie-crawler/logs/webserver.log"
 
 # Log Crawler (crawl cycle)
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
-  "tail -f /opt/movie-crawler/logs/runner.log"
+ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -f /opt/movie-crawler/logs/runner.log"
 
-# Log ứng dụng (logback — trong source/logs)
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
-  "tail -f /opt/movie-crawler/source/logs/movie-crawler.log"
+# Log ứng dụng (logback)
+ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -f /opt/movie-crawler/logs/crawler.log"
 ```
 
 ---
