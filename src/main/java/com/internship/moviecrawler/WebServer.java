@@ -1,7 +1,9 @@
 package com.internship.moviecrawler;
 
 import com.internship.moviecrawler.config.AppConfig;
+import com.internship.moviecrawler.controller.AuthFilter;
 import com.internship.moviecrawler.controller.MovieController;
+import com.internship.moviecrawler.repository.CachedMovieRepository;
 import com.internship.moviecrawler.repository.MovieRepository;
 import com.internship.moviecrawler.repository.SqliteMovieRepository;
 import com.internship.moviecrawler.service.MovieService;
@@ -25,16 +27,19 @@ public class WebServer {
         AppConfig config = new AppConfig();
 
         // Init layers bottom-up with constructor dependency injection
-        MovieRepository repo = new SqliteMovieRepository(config.getDbPath());
-        MovieService service = new MovieService(repo);
-        MovieController controller = new MovieController(service);
+        MovieRepository sqliteRepo = new SqliteMovieRepository(config.getDbPath());
+        CachedMovieRepository cachedRepo = new CachedMovieRepository(sqliteRepo, 10, 20);
+        MovieService service = new MovieService(cachedRepo);
+        MovieController controller = new MovieController(service, cachedRepo);
 
         // Configure and start Spark
         Spark.port(DEFAULT_PORT);
         controller.registerRoutes();
+        AuthFilter.register(config);
 
         log.info("MovieVault API started on http://localhost:{}", DEFAULT_PORT);
         log.info("Endpoints:");
         log.info("  GET /movies?url=<movie-url>  — Lookup movie by URL");
+        log.info("  GET /cache/stats              — Cache hit rate & size");
     }
 }
