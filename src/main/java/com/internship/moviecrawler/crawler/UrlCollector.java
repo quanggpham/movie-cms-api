@@ -1,5 +1,9 @@
 package com.internship.moviecrawler.crawler;
 
+import com.internship.moviecrawler.config.AppConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,23 +18,52 @@ import java.util.regex.Pattern;
  * Auto-discovers movie URLs from toivote.com by fetching known pages
  * and extracting /movie/{uuid} links from the HTML.
  *
- * Usage: {@code UrlCollector.collect(fetcher, outputPath)}
+ * <p>Standalone usage:
+ * <pre>{@code java -cp <fat-jar> com.internship.moviecrawler.crawler.UrlCollector}</pre>
+ * Writes discovered URLs to {@code src/main/resources/urls.txt} (classpath resource).
  */
 public class UrlCollector {
+
+    private static final Logger log = LoggerFactory.getLogger(UrlCollector.class);
 
     private static final Pattern MOVIE_URL_PATTERN =
             Pattern.compile("/movie/([a-f0-9]{8,})");
 
     private static final String[] SEED_PAGES = {
             "https://toivote.com/",
-            "https://toivote.com/leaderboard"
+            "https://toivote.com/leaderboard",
+            "https://toivote.com/discover/genres"
     };
+
+    /**
+     * Entry point for standalone URL discovery.
+     * Reads config, creates a MovieFetcher, discovers URLs, writes to urls.txt resource.
+     */
+    public static void main(String[] args) {
+        AppConfig config = new AppConfig();
+        MovieFetcher fetcher = new MovieFetcher(
+                config.getFetchConnectTimeoutMs(),
+                config.getFetchRequestTimeoutMs(),
+                config.getFetchMaxRetries(),
+                config.getFetchUserAgent()
+        );
+
+        // Write to src/main/resources/urls.txt (classpath resource read by App.loadUrls)
+        Path outputFile = Path.of("src/main/resources/urls.txt");
+        try {
+            Files.createDirectories(outputFile.getParent());
+            Set<String> urls = collect(fetcher, outputFile);
+            log.info("Done — {} URLs written to {}", urls.size(), outputFile);
+        } catch (IOException e) {
+            log.error("Failed to write urls.txt", e);
+        }
+    }
 
     /**
      * Fetch seed pages and extract unique movie detail URLs.
      *
      * @param fetcher    MovieFetcher instance for HTTP requests
-     * @param outputFile path to write discovered URLs (appends, doesn't overwrite)
+     * @param outputFile path to write discovered URLs
      * @return set of discovered URLs
      */
     public static Set<String> collect(MovieFetcher fetcher, Path outputFile) throws IOException {
@@ -52,17 +85,17 @@ public class UrlCollector {
                 String html = fetcher.fetch(pageUrl);
                 extractMovieUrls(html, urls);
             } catch (FetchException.PermanentFetchException e) {
-                System.err.println("[UrlCollector] Skipping " + pageUrl + " — " + e.getMessage());
+                log.warn("Skipping {} — {}", pageUrl, e.getMessage());
             } catch (FetchException.TransientFetchException e) {
-                System.err.println("[UrlCollector] Transient error for " + pageUrl + " — " + e.getMessage());
+                log.warn("Transient error for {} — {}", pageUrl, e.getMessage());
             } catch (FetchException e) {
-                System.err.println("[UrlCollector] Error fetching " + pageUrl + " — " + e.getMessage());
+                log.warn("Error fetching {} — {}", pageUrl, e.getMessage());
             }
         }
 
         int after = urls.size();
         if (after > before) {
-            System.out.println("[UrlCollector] Discovered " + (after - before) + " new URLs");
+            log.info("Discovered {} new URLs", after - before);
         }
 
         // 3. Write back to file

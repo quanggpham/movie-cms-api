@@ -6,6 +6,7 @@ import com.internship.moviecrawler.crawler.FetchException;
 import com.internship.moviecrawler.crawler.MovieFetcher;
 import com.internship.moviecrawler.crawler.MovieParser;
 import com.internship.moviecrawler.crawler.ParseException;
+import com.internship.moviecrawler.crawler.UrlCollector;
 import com.internship.moviecrawler.model.Movie;
 import com.internship.moviecrawler.repository.MovieRepository;
 import com.internship.moviecrawler.repository.SqliteMovieRepository;
@@ -13,11 +14,7 @@ import com.internship.moviecrawler.repository.SqliteMovieRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,7 +24,8 @@ import java.util.*;
 /**
  * Main orchestrator for the movie crawler.
  *
- * Flow: load config → init DB → read urls → crawl each → backup → summary.
+ * Flow: discover URLs via UrlCollector → check freshness → fetch → parse → upsert → backup → summary.
+ * Each cycle auto-discovers new movie URLs from toivote.com seed pages.
  */
 public class App {
     private static final Logger log = LoggerFactory.getLogger(App.class);
@@ -52,9 +50,12 @@ public class App {
         DatabaseBackup backup = new DatabaseBackup(Path.of(config.getBackupDir()));
 
         try {
-            List<String> urls = loadUrls(config.getUrlsFile());
+            // Auto-discover movie URLs from toivote.com seed pages
+            Path urlsFile = Path.of(config.getDbPath()).getParent().resolve("urls.txt");
+            Set<String> urlSet = UrlCollector.collect(fetcher, urlsFile);
+            List<String> urls = new ArrayList<>(urlSet);
             total = urls.size();
-            log.info("Starting crawl of {} URLs", total);
+            log.info("Starting crawl of {} URLs (auto-discovered from toivote.com)", total);
 
             Instant freshSince = Instant.now().minus(config.getFreshnessThresholdHours(), ChronoUnit.HOURS);
 
@@ -115,7 +116,7 @@ public class App {
             }
 
         } catch (IOException e) {
-            log.error("Failed to read URLs file: {}", config.getUrlsFile(), e);
+            log.error("Failed to collect URLs from seed pages", e);
         } finally {
             repo.close();
 
@@ -138,25 +139,6 @@ public class App {
             log.info("Elapsed:        {}m {}s", elapsed.toMinutes(), elapsed.toSecondsPart());
             log.info("====================================");
         }
-    }
-
-    private static List<String> loadUrls(String resourceName) throws IOException {
-        List<String> urls = new ArrayList<>();
-        InputStream is = App.class.getClassLoader().getResourceAsStream(resourceName);
-        if (is == null) {
-            throw new IOException("Resource not found: " + resourceName);
-        }
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) {
-                    continue;
-                }
-                urls.add(line);
-            }
-        }
-        return new ArrayList<>(new LinkedHashSet<>(urls)); // dedup, preserve order
     }
 
     /**
