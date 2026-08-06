@@ -1,4 +1,8 @@
-# Movie CMS — Deploy & Verification Guide
+# Movie CMS — Deploy & Verification Guide (Local)
+
+> **Local copy** cho máy `Admin` — path SSH key là `C:\Users\Admin\.ssh\moviebot_key`,
+> project ở `F:\App\hoc\workspace\VCCORP\projects\movie-cms-api`.
+> File gốc: `docs/deploy-guide.md` (dành cho máy `Quang`).
 
 Hướng dẫn triển khai toàn bộ project (Bài 2-6) lên Docker container, kèm cách kiểm tra từng yêu cầu.
 
@@ -24,17 +28,17 @@ Hướng dẫn triển khai toàn bộ project (Bài 2-6) lên Docker container,
 
 ```powershell
 # Trên máy Windows (PowerShell)
-ssh-keygen -t rsa -b 4096 -f C:\Users\Quang\.ssh\moviebot_key -N "" -C "moviebot@docker"
+ssh-keygen -t rsa -b 4096 -f C:\Users\Admin\.ssh\moviebot_key -N "" -C "moviebot@docker"
 ```
 
 Kết quả tạo ra 2 file:
-- `C:\Users\Quang\.ssh\moviebot_key` — private key (giữ trên máy)
-- `C:\Users\Quang\.ssh\moviebot_key.pub` — public key (copy vào Docker)
+- `C:\Users\Admin\.ssh\moviebot_key` — private key (giữ trên máy)
+- `C:\Users\Admin\.ssh\moviebot_key.pub` — public key (copy vào Docker)
 
 ### 1.2. Copy public key vào authorized_keys
 
 ```powershell
-Copy-Item C:\Users\Quang\.ssh\moviebot_key.pub docker\authorized_keys
+Copy-Item C:\Users\Admin\.ssh\moviebot_key.pub docker\authorized_keys
 ```
 
 > File `docker/authorized_keys` sẽ được Dockerfile copy vào container tại `/home/moviebot/.ssh/authorized_keys`
@@ -45,7 +49,7 @@ Copy-Item C:\Users\Quang\.ssh\moviebot_key.pub docker\authorized_keys
 
 ```bash
 # Trong thư mục project gốc
-cd C:\Workspace\VCCORP\movie-cms-api
+cd F:\App\hoc\workspace\VCCORP\projects\movie-cms-api
 docker build -t movie-cms -f docker/Dockerfile .
 ```
 
@@ -80,7 +84,7 @@ Expected: thấy container `movie-cms` status `Up`
 ## 4. SSH vào Container
 
 ```bash
-ssh -i C:\Users\Quang\.ssh\moviebot_key -p 2222 moviebot@localhost
+ssh -i C:\Users\Admin\.ssh\moviebot_key -p 2222 moviebot@localhost
 ```
 
 **Kiểm tra kết nối thành công:**
@@ -146,21 +150,21 @@ ps aux | grep java
 **Kiểm tra DB và urls.txt tồn tại:**
 
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "ls -la /opt/movie-crawler/data/"
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "ls -la /opt/movie-crawler/data/"
 ```
 Expected: thấy `movies.db` và `urls.txt` (file URLs auto-discovered từ UrlCollector)
 
 **Kiểm tra backup:**
 
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "ls -la /opt/movie-crawler/backup/"
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "ls -la /opt/movie-crawler/backup/"
 ```
 Expected: thấy file backup `movies_YYYYMMDD_HHmmss.db`
 
 **Kiểm tra dữ liệu trong DB:**
 
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "cat > /tmp/QueryDb.java << 'JAVAEOF'
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "cat > /tmp/QueryDb.java << 'JAVAEOF'
 import java.sql.*;
 public class QueryDb {
     public static void main(String[] args) throws Exception {
@@ -179,7 +183,7 @@ cd /tmp && javac QueryDb.java && java -cp /opt/movie-crawler/movie-crawler-servi
 **Kiểm tra crawler log:**
 
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -20 /opt/movie-crawler/logs/runner.log"
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -20 /opt/movie-crawler/logs/runner.log"
 ```
 Expected: thấy `Starting crawl cycle...` và `Crawl cycle finished. Sleeping 5s...`
 
@@ -187,9 +191,9 @@ Expected: thấy `Starting crawl cycle...` và `Crawl cycle finished. Sleeping 5
 
 ```bash
 # Lấy URL movie có sẵn từ data/urls.txt (trên container)
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "grep '^https://' /opt/movie-crawler/data/urls.txt | head -3"
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "grep '^https://' /opt/movie-crawler/data/urls.txt | head -3"
 
-# Hoặc lấy URL từ DB (câu lệnh Java ở trên)
+# Hoặc lấy URL từ DB (dùng câu lệnh Java ở trên)
 # Dùng URL đó để test (thay bằng URL thực tế từ DB)
 TOKEN=$(curl -s -X POST http://localhost:8080/login -H "Content-Type: application/json" -d '{"username":"admin","password":"secret"}' | sed -n 's/.*"token": "\([^"]*\)".*/\1/p')
 
@@ -272,14 +276,14 @@ curl -s http://localhost:8080/cache/stats -H "Authorization: Bearer $TOKEN"
 **Kiểm tra git log có merge commit:**
 
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost \
   "cd /opt/movie-crawler/source && git log --oneline --graph -10"
 ```
 Expected: thấy merge commit `merge: resolve conflict — hop nhat comment server & client`
 
 **Kiểm tra file đã resolve:**
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost \
   "grep 'Chinh sua hop nhat' /opt/movie-crawler/source/src/main/java/com/internship/moviecrawler/repository/CachedMovieRepository.java"
 ```
 Expected: `/* Chinh sua hop nhat giua server & client */`
@@ -351,7 +355,7 @@ done
 ### 7.7. Bài 6 — JVM Heap
 
 ```bash
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost "ps aux | grep java"
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "ps aux | grep java"
 ```
 Expected: trong output thấy `-Xms125m -Xmx512m`
 
@@ -361,15 +365,15 @@ Expected: trong output thấy `-Xms125m -Xmx512m`
 
 ```bash
 # Log WebServer (API requests, cache hits/misses)
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost \
   "tail -f /opt/movie-crawler/logs/webserver.log"
 
 # Log Crawler (crawl cycle)
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost \
   "tail -f /opt/movie-crawler/logs/runner.log"
 
 # Log ứng dụng (logback — trong source/logs)
-ssh -i ~/.ssh/moviebot_key -p 2222 moviebot@localhost \
+ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost \
   "tail -f /opt/movie-crawler/source/logs/movie-crawler.log"
 ```
 
