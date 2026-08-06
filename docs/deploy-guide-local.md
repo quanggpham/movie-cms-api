@@ -356,13 +356,7 @@ Expected: trong output thấy `-Xms125m -Xmx512m`
 ## 8. Xem Log
 
 ```bash
-# Log WebServer (API requests, cache hits/misses)
-ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -f /opt/movie-crawler/logs/webserver.log"
-
-# Log Crawler (crawl cycle)
-ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -f /opt/movie-crawler/logs/runner.log"
-
-# Log ứng dụng (logback)
+# Log WebServer + Crawler (logback)
 ssh -i C:/Users/Admin/.ssh/moviebot_key -p 2222 moviebot@localhost "tail -f /opt/movie-crawler/logs/crawler.log"
 ```
 
