@@ -3,6 +3,7 @@ package com.internship.moviecrawler.controller;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.internship.moviecrawler.model.Movie;
+import com.internship.moviecrawler.repository.CachedMovieRepository;
 import com.internship.moviecrawler.repository.SqliteMovieRepository;
 import com.internship.moviecrawler.service.MovieService;
 import org.junit.jupiter.api.*;
@@ -22,13 +23,15 @@ class MovieControllerTest {
     private static final Gson GSON = new Gson();
 
     private SqliteMovieRepository repo;
+    private CachedMovieRepository cachedRepo;
     private HttpClient httpClient;
 
     @BeforeEach
     void setUp() {
         repo = new SqliteMovieRepository(":memory:");
-        MovieService service = new MovieService(repo);
-        MovieController controller = new MovieController(service);
+        cachedRepo = new CachedMovieRepository(repo, 10, 20);
+        MovieService service = new MovieService(cachedRepo);
+        MovieController controller = new MovieController(service, cachedRepo);
 
         Spark.port(TEST_PORT);
         controller.registerRoutes();

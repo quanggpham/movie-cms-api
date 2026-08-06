@@ -17,7 +17,7 @@ mvn test -Dtest=MovieParserTest
 # Run a single test method
 mvn test -Dtest=MovieParserTest#parse_EnchantedFixture_ShouldExtractAllFields
 
-# Build fat JAR (with all dependencies)
+# Build fat JAR (with all dependencies, manifest points to App.java)
 mvn clean package -P standalone
 
 # Run all tests with JaCoCo coverage report
@@ -27,23 +27,21 @@ mvn clean test
 # Run the crawler (batch mode — exits after crawl completes)
 java -jar target/movie-crawler-service-1.0.0-jar-with-dependencies.jar
 
-# Run the REST API server (Exercise 3)
+# Run the REST API server
 java -cp target/movie-crawler-service-1.0.0-jar-with-dependencies.jar com.internship.moviecrawler.WebServer
 ```
 
 ## Project Roadmap & Current State
 
-This is a 5-exercise internship project. **Currently only Exercise 2 is implemented** (Exercises 3-6 are pending):
+All 5 exercises are implemented:
 
 | Exercise | Status | What it adds |
 |----------|--------|-------------|
 | **2** — Web Crawler & SQLite | ✅ Done | `App.java`, `MovieFetcher`, `MovieParser`, `SqliteMovieRepository`, `DatabaseBackup` |
 | **3** — REST Web Service | ✅ Done | `WebServer.java`, `MovieController`, `MovieService`, `ApiResponse` envelope |
-| **4** — Custom CacheTTL | ❌ Not started | `CacheTTL<K,V> implements Map<K,V>` with TTL per entry |
-| **5** — Guava Cache | ❌ Not started | Replace custom cache with Guava, Git conflict resolution |
-| **6** — Auth & Rate Limiting | ❌ Not started | `POST /login`, rate limiter, Docker deploy, JVM heap tuning |
-
-Dependencies for upcoming exercises are already in `pom.xml`: `spark-core` (ex3), `guava` (ex5).
+| **4** — Custom CacheTTL | ✅ Done (replaced) | Originally `CacheTTL<K,V>` — since replaced by Guava in exercise 5 |
+| **5** — Guava Cache | ✅ Done | `CachedMovieRepository` wrapping `SqliteMovieRepository` with Guava `Cache` (access + write TTL, hit rate stats) |
+| **6** — Auth & Rate Limiting | ✅ Done | `POST /login`, `AuthFilter` with sliding-window rate limiter (2 req/5s + 10 req/60s), Docker deploy, JVM heap tuning |
 
 ## Architecture
 
@@ -51,36 +49,39 @@ Dependencies for upcoming exercises are already in `pom.xml`: `spark-core` (ex3)
 
 ```
 src/main/java/com/internship/moviecrawler/
-├── App.java                     # Main orchestrator — wires everything
+├── App.java                     # Main orchestrator for crawl pipeline
+├── WebServer.java               # REST API entry point — wires all layers and starts Spark
 ├── config/
 │   └── AppConfig.java           # Reads config.properties, typed getters with defaults
 ├── crawler/
-│   ├── FetchException.java      # Base exception + TransientFetchException / PermanentFetchException subclasses
-│   ├── MovieFetcher.java        # HTTP client (Java HttpClient) with retry + backoff
+│   ├── FetchException.java      # Base + TransientFetchException / PermanentFetchException
+│   ├── MovieFetcher.java        # HTTP client (Java HttpClient) with retry + exponential backoff
 │   ├── MovieParser.java         # HTML → Movie (JSON-LD primary, CSS fallback)
 │   ├── ParseException.java      # Thrown when title can't be extracted
 │   └── UrlCollector.java        # Standalone tool — discovers movie URLs from toivote.com
 ├── model/
 │   └── Movie.java               # POJO: 11 fields, no behavior
 ├── repository/
-│   ├── MovieRepository.java     # Interface (for future swap: mock, cache, etc.)
-│   └── SqliteMovieRepository.java # SQLite: upsert via ON CONFLICT, list fields as JSON
-└── backup/
-    └── DatabaseBackup.java      # Copies .db → backup/movies_YYYYMMDD_HHmmss.db
-├── controller/                # (ex3) REST API layer
-│   └── MovieController.java   # Spark routes + response formatting
-├── service/                   # (ex3) Business logic
-│   ├── MovieService.java      # URL validation + lookup
+│   ├── MovieRepository.java     # Interface (for DI, testing with :memory: SQLite)
+│   ├── SqliteMovieRepository.java # SQLite: upsert via ON CONFLICT, list fields as JSON
+│   └── CachedMovieRepository.java # Guava Cache decorator — delegates to SQLite, records stats
+├── backup/
+│   └── DatabaseBackup.java      # Copies .db → backup/movies_YYYYMMDD_HHmmss.db
+├── controller/
+│   ├── MovieController.java     # Spark routes (GET /movies, GET /cache/stats) + exception handlers
+│   └── AuthFilter.java          # Bearer-token auth + sliding-window rate limiter (Spark before() filter)
+├── service/
+│   ├── MovieService.java        # Business logic — URL validation + lookup
 │   └── MovieNotFoundException.java  # 404 error
-└── dto/                       # (ex3) API data transfer objects
-    ├── ApiResponse.java       # Standard JSON envelope {success, status, data, error}
-    └── ErrorDetail.java       # Error code + message
+└── dto/
+    ├── ApiResponse.java         # Standard JSON envelope {success, status, data, error} (Java record)
+    └── ErrorDetail.java         # Error code + message
 ```
 
 ### Key Design Rules
 
-- **`App.java` is the only class that knows about all others.** Lower layers never import each other: `MovieFetcher` doesn't know `MovieParser`, `MovieParser` doesn't know the repository, repository doesn't know `DatabaseBackup`.
-- **Repository uses interface-first** so tests can use `:memory:` SQLite and future exercises can wrap it with caching.
+- **`App.java` and `WebServer.java` are the only classes that know about all others.** Lower layers never import each other: `MovieFetcher` doesn't know `MovieParser`, `MovieParser` doesn't know the repository, repository doesn't know `DatabaseBackup`.
+- **Repository uses interface-first** so tests can use `:memory:` SQLite and the cache layer (`CachedMovieRepository`) can wrap transparently.
 - **Title is required** — `MovieParser` throws `ParseException` if missing. All other fields default gracefully (null, "", or empty list).
 
 ### Data Flow (Crawl Pipeline)
@@ -91,26 +92,41 @@ urls.txt → freshness check (skip if <24h old) → MovieFetcher.fetch(url) → 
 → Thread.sleep(1.5s) → repeat → close DB → DatabaseBackup.backup()
 ```
 
-## Testing
+### Data Flow (REST API)
 
-- **JUnit 5 + WireMock** for HTTP mocking, **in-memory SQLite** (`:memory:`) for repository tests
-- Test HTML fixtures in `src/test/resources/html/` (enchanted.html, minimal.html, malformed.html)
-- WireMock tests use `@RegisterExtension` with dynamic port — no port conflicts
-- Repository tests use `@BeforeEach`/`@AfterEach` to create/close in-memory DB per test
+```
+HTTP request → AuthFilter (token + rate-limit check) → MovieController → MovieService
+→ CachedMovieRepository (cache hit? → return | cache miss? → SqliteMovieRepository) → ApiResponse JSON
+```
 
-**Test coverage** via JaCoCo (`mvn clean test` → `target/site/jacoco/index.html`). Coverage thresholds in `pom.xml` start at 0% minimum — ratchet up as tests grow.
-
-## Configuration
-
-All in `src/main/resources/config.properties` — fetch timeouts, retry count, delay, DB path, etc. Fallback values hardcoded in `AppConfig.java`. Logging via `logback.xml` (rolling file, daily, 30-day retention; separate file for failed URLs).
-
-## API (Exercise 3)
+## API (Exercises 3-6)
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|:---:|
-| `GET` | `/movies?url=<movie-url>` | Lookup movie by URL | ❌ |
+| `POST` | `/login` | Exchange credentials for bearer token | ❌ |
+| `GET` | `/movies?url=<movie-url>` | Lookup movie by URL | ✅ Bearer |
+| `GET` | `/cache/stats` | Cache hit rate & current size | ✅ Bearer |
 
 All responses use a JSON envelope: `{"success": true/false, "status": <http-code>, "data": ..., "error": {"code": "...", "message": "..."}}`. Gson pretty-prints all output. `null` fields are omitted.
+
+### Auth & Rate Limiting
+
+- **`POST /login`** — accepts `{"username": "...", "password": "..."}`, returns `{"token": "<uuid>", "expiresIn": 3600}`. Credentials in `config.properties` (default: `admin`/`secret`).
+- **All other routes** require `Authorization: Bearer <token>` header. Tokens expire after 1 hour; a background thread evicts expired tokens every 10 minutes.
+- **Sliding-window rate limiter** per token: max 2 requests per 5 seconds AND max 10 requests per 60 seconds. Exceeding either window returns 429. Stale windows are evicted every 5 minutes.
+
+## Guava Cache
+
+`CachedMovieRepository` wraps any `MovieRepository` with a Guava `Cache` configured with:
+- `expireAfterAccess` (idle TTL) — default 10s
+- `expireAfterWrite` (absolute TTL) — default 20s
+- `recordStats()` — hit rate available via `GET /cache/stats`
+
+The cache is a transparent decorator: all `MovieRepository` methods delegate through. Only `findByUrl` checks/updates the cache.
+
+## Configuration
+
+All in `src/main/resources/config.properties` — fetch timeouts, retry count, delay, DB path, auth credentials, etc. Fallback values hardcoded in `AppConfig.java`. Logging via `logback.xml` (rolling file, daily, 30-day retention; separate file for failed URLs).
 
 ## Database
 
@@ -118,4 +134,17 @@ Single table `movies` with upsert via `ON CONFLICT(url) DO UPDATE`. List fields 
 
 ## Docker Deployment
 
-`docker/Dockerfile` — Ubuntu 22.04 + OpenSSH + Java 17. Key-only SSH auth. `scripts/run.sh` loops the JAR every 5 seconds. JVM heap: initial 125MB, max 512MB (configured externally).
+`docker/Dockerfile` — Ubuntu 22.04 + OpenSSH + Java 17 (both JRE and JDK) + Maven + Git. Key-only SSH auth (no password). Exposes ports 22 (SSH) and 8080 (API).
+
+`scripts/run.sh` — production runner: starts WebServer in background, then loops the crawler JAR every 5 seconds. JVM heap: `-Xms125m -Xmx512m`.
+
+## Testing
+
+- **JUnit 5 + WireMock** for HTTP mocking, **in-memory SQLite** (`:memory:`) for repository tests
+- Test HTML fixtures in `src/test/resources/html/` (enchanted.html, minimal.html, malformed.html)
+- WireMock tests use `@RegisterExtension` with dynamic port — no port conflicts
+- Repository tests use `@BeforeEach`/`@AfterEach` to create/close in-memory DB per test
+- `MovieControllerTest` starts Spark on a custom port (45678) and sends real HTTP requests via `java.net.http.HttpClient`
+- `CachedMovieRepositoryTest` uses a `StubRepo` inner class that counts delegate calls — verifies cache hit/miss behavior
+
+**Test coverage** via JaCoCo (`mvn clean test` → `target/site/jacoco/index.html`). Coverage thresholds in `pom.xml` start at 0% minimum — ratchet up as tests grow.

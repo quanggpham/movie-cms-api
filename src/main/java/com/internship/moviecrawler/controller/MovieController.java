@@ -2,11 +2,14 @@ package com.internship.moviecrawler.controller;
 
 import com.internship.moviecrawler.dto.ApiResponse;
 import com.internship.moviecrawler.model.Movie;
+import com.internship.moviecrawler.repository.CachedMovieRepository;
 import com.internship.moviecrawler.service.MovieNotFoundException;
 import com.internship.moviecrawler.service.MovieService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import spark.Spark;
+
+import java.util.Map;
 
 /**
  * Registers Spark routes for the Movie REST API.
@@ -17,9 +20,11 @@ public class MovieController {
     private static final Logger log = LoggerFactory.getLogger(MovieController.class);
 
     private final MovieService service;
+    private final CachedMovieRepository cache;
 
-    public MovieController(MovieService service) {
+    public MovieController(MovieService service, CachedMovieRepository cache) {
         this.service = service;
+        this.cache = cache;
     }
 
     /**
@@ -27,6 +32,16 @@ public class MovieController {
      * Call once during server startup.
      */
     public void registerRoutes() {
+
+        // GET /cache/stats
+        Spark.get("/cache/stats", (req, res) -> {
+            res.status(200);
+            res.type("application/json");
+            return ApiResponse.success(200, Map.of(
+                    "hitRate", cache.getHitRate(),
+                    "size", cache.getCacheSize()
+            )).toJson();
+        });
 
         // GET /movies?url=<movie-url>
         Spark.get("/movies", (req, res) -> {
