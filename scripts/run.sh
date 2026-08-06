@@ -6,6 +6,9 @@ JAR_DIR="/opt/movie-crawler"
 JAR_FILE="$JAR_DIR/movie-crawler-service-1.0.0-jar-with-dependencies.jar"
 JVM_OPTS="-Xms125m -Xmx512m"
 
+# Ensure CWD is $JAR_DIR so both WebServer and crawler use the same data/movies.db
+cd "$JAR_DIR"
+
 # 1. Start WebServer in background (continuous)
 nohup java $JVM_OPTS -cp "$JAR_FILE" com.internship.moviecrawler.WebServer \
   > "$JAR_DIR/logs/webserver.log" 2>&1 &
