@@ -51,7 +51,8 @@ public class App {
 
         try {
             // Auto-discover movie URLs from toivote.com seed pages
-            Path urlsFile = Path.of(config.getDbPath()).getParent().resolve("urls.txt");
+            Path urlsFile = Path.of(config.getDbPath()).toAbsolutePath().getParent().resolve("urls.txt");
+            log.info("urls.txt path: {}", urlsFile.toAbsolutePath());
             Set<String> urlSet = UrlCollector.collect(fetcher, urlsFile);
             List<String> urls = new ArrayList<>(urlSet);
             total = urls.size();
