@@ -65,4 +65,6 @@ public class CachedMovieRepository implements MovieRepository {
 
     /** Expose current cache size (including expired entries not yet evicted). */
     public int getCacheSize()                         { return (int) cache.size(); }
+
+    /* Chinh sua tren server may client */
 }
