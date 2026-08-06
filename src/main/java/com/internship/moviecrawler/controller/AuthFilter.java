@@ -25,6 +25,20 @@ public class AuthFilter {
     // token → expiry epoch millis
     private static final ConcurrentHashMap<String, Long> tokens = new ConcurrentHashMap<>();
 
+    // Rate limiting — sliding window per token
+    // token → request timestamps (synchronized deque)
+    private static final ConcurrentHashMap<String, SlidingWindow> rateWindows = new ConcurrentHashMap<>();
+
+    static {
+        // Clean up stale rate windows every 5 minutes
+        Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "rate-cleaner");
+            t.setDaemon(true);
+            return t;
+        }).scheduleAtFixedRate(
+                AuthFilter::evictStaleWindows, 5, 5, TimeUnit.MINUTES);
+    }
+
     static {
         // Clean up expired tokens every 10 minutes
         Executors.newSingleThreadScheduledExecutor(r -> {
@@ -92,11 +106,58 @@ public class AuthFilter {
                 Spark.halt(401, ApiResponse.error(401, "UNAUTHORIZED",
                         "Token expired").toJson());
             }
+
+            // 2. Rate limit check
+            SlidingWindow window = rateWindows.computeIfAbsent(token, k -> new SlidingWindow());
+            if (!window.allow()) {
+                Spark.halt(429, ApiResponse.error(429, "RATE_LIMITED",
+                        "Too many requests. Limits: 2 per 5s, 10 per 60s.").toJson());
+            }
         });
     }
 
     private static void evictExpiredTokens() {
         long now = System.currentTimeMillis();
         tokens.entrySet().removeIf(e -> e.getValue() < now);
+    }
+
+    private static void evictStaleWindows() {
+        rateWindows.entrySet().removeIf(e -> e.getValue().isEmpty());
+    }
+
+    private static final class SlidingWindow {
+        private static final int MAX_5S = 2;
+        private static final int MAX_60S = 10;
+
+        private final java.util.Deque<Long> timestamps = new java.util.concurrent.ConcurrentLinkedDeque<>();
+
+        synchronized boolean allow() {
+            long now = System.currentTimeMillis();
+            long fiveSecAgo = now - TimeUnit.SECONDS.toMillis(5);
+            long sixtySecAgo = now - TimeUnit.SECONDS.toMillis(60);
+
+            // Evict old entries for 5s window, check
+            while (!timestamps.isEmpty() && timestamps.peekFirst() < fiveSecAgo) {
+                timestamps.pollFirst();
+            }
+            if (timestamps.size() >= MAX_5S) {
+                return false; // 5s window full
+            }
+
+            // Evict old entries for 60s window, check
+            while (!timestamps.isEmpty() && timestamps.peekFirst() < sixtySecAgo) {
+                timestamps.pollFirst();
+            }
+            if (timestamps.size() >= MAX_60S) {
+                return false; // 60s window full
+            }
+
+            timestamps.addLast(now);
+            return true;
+        }
+
+        boolean isEmpty() {
+            return timestamps.isEmpty();
+        }
     }
 }
