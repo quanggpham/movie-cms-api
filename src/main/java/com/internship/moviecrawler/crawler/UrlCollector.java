@@ -27,7 +27,7 @@ public class UrlCollector {
     private static final Logger log = LoggerFactory.getLogger(UrlCollector.class);
 
     private static final Pattern MOVIE_URL_PATTERN =
-            Pattern.compile("/movie/([a-f0-9]{8,})");
+            Pattern.compile("/movie/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})");
 
     private static final String[] SEED_PAGES = {
             "https://toivote.com/",
