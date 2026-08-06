@@ -66,4 +66,14 @@ public class AppConfig {
     public String getUrlsFile() {
         return props.getProperty("urls.file", "urls.txt");
     }
+
+    // ---- Auth config ----
+
+    public String getAuthUsername() {
+        return props.getProperty("auth.username", "admin");
+    }
+
+    public String getAuthPassword() {
+        return props.getProperty("auth.password", "secret");
+    }
 }
