@@ -1,156 +1,169 @@
-# MovieVault CMS 🎬 — Movie Content Management API
+# Movie Crawler & Web Service 🎬
 
 [![Java](https://img.shields.io/badge/Java-17-%23ED8B00)](https://openjdk.org/)
 [![Maven](https://img.shields.io/badge/Maven-3.9+-C71A36)](https://maven.apache.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-3-003B57)](https://www.sqlite.org/)
+[![Spark Java](https://img.shields.io/badge/Spark--Java-2.9.4-blue)](https://sparkjava.com/)
+[![Guava](https://img.shields.io/badge/Guava-33.3.0-green)](https://github.com/google/guava)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED)](https://www.docker.com/)
 
-A full-stack content management API for movie data — from **web crawling** and **persistent storage** to **RESTful serving** with **multi-layer caching**, **authentication**, and **rate limiting**. Deployed via Docker with SSH-based infrastructure.
+Hệ thống Web Crawler bóc tách dữ liệu phim từ **toivote.com**, lưu trữ vào **SQLite**, phục vụ qua **REST API** (Spark Java) với **Guava Cache**, **Authentication**, **Rate Limiting** và đóng gói triển khai bằng **Docker / Shell Script**.
 
-> **Note:** This evolved from a single crawler assignment into a complete CMS platform across 5 progressive exercises.
+---
 
 ## ✨ Features
 
-### 📦 Data Acquisition (Exercise 2)
-- **Web Crawler** — Scrapes ~100+ movie pages from toivote.com
-- **Data Extraction** — Parses title, year, country, genres, directors, actors
-- **SQLite Storage** — Persistent local database with automatic disk backup
-- **Fat JAR Build** — Single executable JAR with all dependencies (`mvn package -P standalone`)
+### 📦 Crawl & SQLite Storage (Bài 2)
+- **Web Crawler**: Scrape ~100+ URL phim từ toivote.com (tự động phát hiện URL từ seed pages).
+- **Data Parsing**: Bóc tách tiêu đề phim, năm sản xuất, đất nước, thể loại (danh sách), đạo diễn (danh sách), diễn viên (danh sách).
+- **SQLite Database**: Lưu trữ dữ liệu chuẩn hóa, tự động backup dữ liệu định kỳ ra file đĩa (`backup/movies_YYYYMMDD_HHmmss.db`).
+- **Fat JAR**: Đóng gói toàn bộ project + dependencies thành 1 file JAR duy nhất (`movie-crawler-service-1.0.0-jar-with-dependencies.jar`).
 
-### 🌐 REST API (Exercises 3)
-- **Movie Lookup** — GET endpoint returning parsed movie data in formatted JSON
-- **Debug-Ready** — Conditional breakpoints configured for actor name filtering (starts with "A")
+### 🌐 REST Web Service (Bài 3)
+- **Movie Lookup**: Endpoint `GET /movies?url=<movie-url>` trả thông tin chi tiết phim đã crawl dưới dạng JSON format đẹp (pretty-printed).
 
-### 🚀 Caching Layer (Exercises 4-5)
-- **Custom CacheTTL** (`implements Map<K,V>`)
-  - Configurable TTL per entry (write expiry + read expiry)
-  - Hit rate tracking
-- **Guava Cache** — Production-grade replacement
-  - 10s idle expiry, 20s write expiry
-  - Higher throughput and thread safety
+### 🚀 High Performance Caching (Bài 4 - 5)
+- **Guava Cache**: Lưu cache trong bộ nhớ với chiến lược hết hạn song song:
+  - Expire after access: 10 giây nếu không có request đọc.
+  - Expire after write: 20 giây sau khi ghi mới.
+- **Monitoring**: Endpoint `GET /cache/stats` theo dõi tỷ lệ cache hit rate và size.
 
-### 🔒 Security & Deployment (Exercise 6)
-- **Authentication** — Login-required API access
-- **Rate Limiting** — Max 2 requests/5s, 10 requests/minute per user
-- **Docker Deployment** — Linux VM (Alpine) with SSH key-based auth
-- **JVM Tuning** — Heap: initial 125MB, max 512MB
-- **Auto-Run** — Shell script re-launches JAR every 5 seconds
+### 🔒 Auth & Rate Limiting (Bài 6)
+- **Authentication**: `POST /login` xác thực credentials (`admin`/`secret`), cấp Bearer Token có thời hạn.
+- **Rate Limiting**: Giới hạn tối đa **2 requests / 5s** và **10 requests / 60s** per token.
+- **JVM Heap Tuning**: Cấu hình khởi tạo 125MB (`-Xms125m`) và tối đa 512MB (`-Xmx512m`).
+- **Docker VM & Runner Script**: Dockerfile Ubuntu 22.04 với OpenSSH key-only auth, script `run.sh` chạy REST API ngầm và lặp crawler mỗi 5s.
+
+---
 
 ## 🏗 Architecture
 
 ```
-                    ┌─────────────────────────────┐
-                    │      Docker / Linux VM       │
-                    │  ┌───────────────────────┐  │
-                    │  │   MovieVault CMS       │  │
-                    │  │   (Spring Boot)        │  │
-                    │  │                        │  │
-                    │  │  ┌──────┐  ┌────────┐ │  │
-                    │  │  │Auth  │  │ Rate   │ │  │
-                    │  │  │Filter│  │ Limiter│ │  │
-                    │  │  └──┬───┘  └────┬───┘ │  │
-   HTTP              │  │     │          │     │  │
-◄─────────────────►  │  │     └─────┬────┘     │  │
-   :8080              │  │           │          │  │
-                     │  │  ┌────────▼────────┐ │  │
-                     │  │  │   Controller    │ │  │
-                     │  │  └────────┬────────┘ │  │
-                     │  │           │          │  │
-                     │  │  ┌────────▼────────┐ │  │
-                     │  │  │  Cache Layer     │ │  │
-                     │  │  │ (TTL / Guava)   │ │  │
-                     │  │  └────────┬────────┘ │  │
-                     │  │           │          │  │
-                     │  │  ┌────────▼────────┐ │  │
-                     │  │  │     Service     │ │  │
-                     │  │  └────────┬────────┘ │  │
-                     │  │           │          │  │
-                     │  │  ┌────────▼────────┐ │  │
-                     │  │  │   Repository    │ │  │
-                     │  │  │    (SQLite)     │ │  │
-                     │  │  └─────────────────┘ │  │
-                     │  └───────────────────────┘  │
-                     └─────────────────────────────┘
+                      ┌─────────────────────────────────┐
+                      │    Docker Container / VM        │
+                      │  ┌───────────────────────────┐  │
+                      │  │     Spark Java WebServer  │  │
+                      │  │                           │  │
+                      │  │  ┌──────────┐ ┌─────────┐ │  │
+                      │  │  │AuthFilter│ │RateLimit│ │  │
+                      │  │  └────┬─────┘ └────┬────┘ │  │
+   HTTP Request       │  │       │          │      │  │
+ ───────────────────► │  │       └────┬─────┘      │  │
+   :8080              │  │            │            │  │
+                      │  │  ┌─────────▼──────────┐ │  │
+                      │  │  │  MovieController   │ │  │
+                      │  │  └─────────┬──────────┘ │  │
+                      │  │            │            │  │
+                      │  │  ┌─────────▼──────────┐ │  │
+                      │  │  │   MovieService     │ │  │
+                      │  │  └─────────┬──────────┘ │  │
+                      │  │            │            │  │
+                      │  │  ┌─────────▼──────────┐ │  │
+                      │  │  │CachedMovieRepo     │ │  │
+                      │  │  │(Guava Cache 10s/20s) │ │  │
+                      │  │  └─────────┬──────────┘ │  │
+                      │  │            │            │  │
+                      │  │  ┌─────────▼──────────┐ │  │
+                      │  │  │SqliteMovieRepo     │ │  │
+                      │  │  │(data/movies.db)    │ │  │
+                      │  │  └────────────────────┘ │  │
+                      │  └───────────────────────────┘  │
+                      └─────────────────────────────────┘
 
-  ┌──────────────┐
-  │  Crawler     │      Scrapes toivote.com
-  │  (Batch)     │ ──►  Parses HTML → SQLite
+  ┌──────────────┐       Crawl toivote.com
+  │   App.java   │ ────────────────────────────► HTML Parsing (Jsoup / JSON-LD)
+  │ (Batch Crawl)│ ────────────────────────────► Upsert SQLite & Backup
   └──────────────┘
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Java 17+
-- Maven 3.9+
-- Docker (optional, for deployment)
-
-### Build
-
-```bash
-mvn clean package -P standalone
-```
-
-### Run Locally
-
-```bash
-java -jar target/movie-crawler-service-1.0.0-jar-with-dependencies.jar
-```
-
-### Docker Deploy
-
-```bash
-# Build the Docker image
-docker build -t movievault-cms .
-
-# Run container (SSH on :2222, App on :8080)
-docker run -d -p 2222:22 -p 8080:8080 --name movievault movievault-cms
-
-# Copy JAR via SCP
-scp -P 2222 target/movie-crawler-service-*.jar root@localhost:/app/
-```
-
-## 📁 Project Structure
-
-```
-src/
-├── main/java/com/internship/moviecrawler/
-│   ├── App.java                        # Main orchestrator
-│   ├── config/
-│   │   └── AppConfig.java              # Configuration loading
-│   ├── crawler/
-│   │   ├── UrlCollector.java           # Seed URL discovery
-│   │   ├── MovieFetcher.java           # HTTP client with retry
-│   │   └── MovieParser.java            # HTML parsing engine
-│   ├── model/
-│   │   └── Movie.java                  # Movie entity
-│   ├── repository/
-│   │   └── SqliteMovieRepository.java  # SQLite persistence
-│   ├── service/
-│   │   └── ...                         # Business logic
-│   └── cache/
-│       ├── CacheTTL.java               # Custom TTL cache
-│       └── GuavaCacheConfig.java       # Guava configuration
-└── test/java/com/internship/moviecrawler/
-    └── ...                             # Test suite
-```
-
-## 🔑 API Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|:---:|
-| `POST` | `/login` | Authenticate user | ❌ |
-| `GET` | `/movies/{url}` | Get movie by URL | ✅ |
-| `GET` | `/api/movies` | List all movies | ✅ |
-| `GET` | `/prime?n=10000` | Compute & cache prime | ✅ |
-
-## 🧪 Testing
-
-```bash
-mvn test
 ```
 
 ---
 
-*Built as part of a backend engineering internship program, evolving from a web scraper into a production-ready CMS platform.*
+## 📁 Directory Structure
+
+```
+.
+├── docker/
+│   ├── Dockerfile                  # Ubuntu 22.04 + OpenSSH + Java 17 + Maven
+│   └── authorized_keys             # SSH public key configuration
+├── docs/
+│   └── assignment.md               # Đề bài yêu cầu (Bài 2 -> Bài 6)
+├── scripts/
+│   └── run.sh                      # Shell script khởi chạy WebServer & crawl loop 5s
+├── src/
+│   ├── main/
+│   │   ├── java/com/internship/moviecrawler/
+│   │   │   ├── App.java            # Main orchestrator cho Crawler pipeline
+│   │   │   ├── WebServer.java      # Main entry point cho REST Web Service (Spark)
+│   │   │   ├── backup/             # Backup SQLite database
+│   │   │   ├── config/             # AppConfig (đọc config.properties)
+│   │   │   ├── controller/         # MovieController & AuthFilter (Spark routes & rate limit)
+│   │   │   ├── crawler/            # MovieFetcher, MovieParser, UrlCollector
+│   │   │   ├── dto/                # ApiResponse envelope & ErrorDetail
+│   │   │   ├── model/              # Movie entity POJO
+│   │   │   ├── repository/         # SqliteMovieRepository & CachedMovieRepository
+│   │   │   └── service/            # MovieService business logic
+│   │   └── resources/
+│   │       ├── config.properties   # File cấu hình hệ thống
+│   │       ├── logback.xml         # Cấu hình logging
+│   │       └── urls.txt            # Danh sách URL movie mẫu
+│   └── test/                       # Unit tests & Integration tests (JUnit 5 + WireMock)
+├── pom.xml                         # Maven dependencies & Assembly plugin build fat JAR
+└── README.md
+```
+
+---
+
+## 🛠 Build & Run
+
+### 1. Build Fat JAR
+```bash
+mvn clean package
+```
+*Tạo file `target/movie-crawler-service-1.0.0-jar-with-dependencies.jar`.*
+
+### 2. Run Crawler (Bài 2)
+```bash
+java -jar target/movie-crawler-service-1.0.0-jar-with-dependencies.jar
+```
+
+### 3. Run REST WebServer (Bài 3 - 6)
+```bash
+java -cp target/movie-crawler-service-1.0.0-jar-with-dependencies.jar com.internship.moviecrawler.WebServer
+```
+*Server chạy tại `http://localhost:8080`.*
+
+---
+
+## 🔑 API Reference
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|:---:|
+| `POST` | `/login` | Đăng nhập lấy Bearer token (`{"username":"admin","password":"secret"}`) | ❌ |
+| `GET` | `/movies?url=<movie-url>` | Lấy thông tin phim theo URL đã crawl | ✅ Bearer |
+| `GET` | `/cache/stats` | Xem thông số cache (hit rate %, size) | ✅ Bearer |
+
+#### Response Envelope format:
+```json
+{
+  "success": true,
+  "status": 200,
+  "data": {
+    "url": "https://toivote.com/movie/...",
+    "title": "Tên phim",
+    "releaseYear": 2023,
+    "country": "Mỹ",
+    "genres": ["Hành động", "Phiêu lưu"],
+    "directors": ["Đạo diễn A"],
+    "actors": ["Diễn viên B", "Diễn viên C"]
+  }
+}
+```
+
+---
+
+## 🧪 Testing
+
+Chạy bộ test tự động (JUnit 5, WireMock, SQLite in-memory):
+```bash
+mvn clean test
+```
