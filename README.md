@@ -1,4 +1,4 @@
-# Movie Crawler & Web Service 🎬
+# Movie Crawler & Web Service
 
 [![Java](https://img.shields.io/badge/Java-17-%23ED8B00)](https://openjdk.org/)
 [![Maven](https://img.shields.io/badge/Maven-3.9+-C71A36)](https://maven.apache.org/)
@@ -11,24 +11,28 @@ Hệ thống Web Crawler bóc tách dữ liệu phim từ **toivote.com**, lưu 
 
 ---
 
-## ✨ Features
+## Features
 
-### 📦 Crawl & SQLite Storage (Bài 2)
+### Crawl & SQLite Storage (Bài 2)
+
 - **Web Crawler**: Scrape ~100+ URL phim từ toivote.com (tự động phát hiện URL từ seed pages).
 - **Data Parsing**: Bóc tách tiêu đề phim, năm sản xuất, đất nước, thể loại (danh sách), đạo diễn (danh sách), diễn viên (danh sách).
 - **SQLite Database**: Lưu trữ dữ liệu chuẩn hóa, tự động backup dữ liệu định kỳ ra file đĩa (`backup/movies_YYYYMMDD_HHmmss.db`).
 - **Fat JAR**: Đóng gói toàn bộ project + dependencies thành 1 file JAR duy nhất (`movie-crawler-service-1.0.0-jar-with-dependencies.jar`).
 
-### 🌐 REST Web Service (Bài 3)
+### REST Web Service (Bài 3)
+
 - **Movie Lookup**: Endpoint `GET /movies?url=<movie-url>` trả thông tin chi tiết phim đã crawl dưới dạng JSON format đẹp (pretty-printed).
 
-### 🚀 High Performance Caching (Bài 4 - 5)
+### High Performance Caching (Bài 4 - 5)
+
 - **Guava Cache**: Lưu cache trong bộ nhớ với chiến lược hết hạn song song:
   - Expire after access: 10 giây nếu không có request đọc.
   - Expire after write: 20 giây sau khi ghi mới.
 - **Monitoring**: Endpoint `GET /cache/stats` theo dõi tỷ lệ cache hit rate và size.
 
-### 🔒 Auth & Rate Limiting (Bài 6)
+### Auth & Rate Limiting (Bài 6)
+
 - **Authentication**: `POST /login` xác thực credentials (`admin`/`secret`), cấp Bearer Token có thời hạn.
 - **Rate Limiting**: Giới hạn tối đa **2 requests / 5s** và **10 requests / 60s** per token.
 - **JVM Heap Tuning**: Cấu hình khởi tạo 125MB (`-Xms125m`) và tối đa 512MB (`-Xmx512m`).
@@ -36,7 +40,7 @@ Hệ thống Web Crawler bóc tách dữ liệu phim từ **toivote.com**, lưu 
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ```
                       ┌─────────────────────────────────┐
@@ -78,7 +82,7 @@ Hệ thống Web Crawler bóc tách dữ liệu phim từ **toivote.com**, lưu 
 
 ---
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```
 .
@@ -113,36 +117,42 @@ Hệ thống Web Crawler bóc tách dữ liệu phim từ **toivote.com**, lưu 
 
 ---
 
-## 🛠 Build & Run
+## Build & Run
 
 ### 1. Build Fat JAR
+
 ```bash
 mvn clean package
 ```
+
 *Tạo file `target/movie-crawler-service-1.0.0-jar-with-dependencies.jar`.*
 
 ### 2. Run Crawler (Bài 2)
+
 ```bash
 java -jar target/movie-crawler-service-1.0.0-jar-with-dependencies.jar
 ```
 
 ### 3. Run REST WebServer (Bài 3 - 6)
+
 ```bash
 java -cp target/movie-crawler-service-1.0.0-jar-with-dependencies.jar com.internship.moviecrawler.WebServer
 ```
+
 *Server chạy tại `http://localhost:8080`.*
 
 ---
 
-## 🔑 API Reference
+## API Reference
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|:---:|
-| `POST` | `/login` | Đăng nhập lấy Bearer token (`{"username":"admin","password":"secret"}`) | ❌ |
-| `GET` | `/movies?url=<movie-url>` | Lấy thông tin phim theo URL đã crawl | ✅ Bearer |
-| `GET` | `/cache/stats` | Xem thông số cache (hit rate %, size) | ✅ Bearer |
+| `POST` | `/login` | Đăng nhập lấy Bearer token (`{"username":"admin","password":"secret"}`) | No |
+| `GET` | `/movies?url=<movie-url>` | Lấy thông tin phim theo URL đã crawl | Bearer |
+| `GET` | `/cache/stats` | Xem thông số cache (hit rate %, size) | Bearer |
 
 #### Response Envelope format:
+
 ```json
 {
   "success": true,
@@ -161,9 +171,10 @@ java -cp target/movie-crawler-service-1.0.0-jar-with-dependencies.jar com.intern
 
 ---
 
-## 🧪 Testing
+## Testing
 
 Chạy bộ test tự động (JUnit 5, WireMock, SQLite in-memory):
+
 ```bash
 mvn clean test
 ```
